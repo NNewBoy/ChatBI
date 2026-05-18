@@ -129,7 +129,17 @@ class ExcSQLTool(BaseTool):
         if session_id:
             _last_df_dict[session_id] = df
 
-        md = df.head(10).to_markdown(index=False)
+        n = len(df)
+        if n <= 10:
+            md = df.to_markdown(index=False)
+        else:
+            md = df.head(5).to_markdown(index=False)
+            md += '\n\n... (省略中间数据) ...\n\n'
+            md += df.tail(5).to_markdown(index=False)
+
+        if n > 1:
+            md += '\n\n**描述统计:**\n\n'
+            md += df.describe().to_markdown()
 
         if len(df) <= 1:
             return md
@@ -323,7 +333,7 @@ def _plot_single_series(df_sql, x_col, num_columns, save_path):
 
 def init_agent_service():
     llm_cfg = {
-        'model': 'qwen-turbo',
+        'model': 'qwen-max',
         'timeout': 30,
         'retry_count': 3,
     }
@@ -334,6 +344,7 @@ def init_agent_service():
             description='股票行情查询与分析',
             system_message=system_prompt,
             function_list=['exc_sql'],
+            files=['./QA.txt'] # 这里设置RAG知识库
         )
         print("股票查询助手初始化成功！")
         return bot
