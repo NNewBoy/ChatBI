@@ -130,6 +130,10 @@ class ExcSQLTool(BaseTool):
             _last_df_dict[session_id] = df
 
         md = df.head(10).to_markdown(index=False)
+
+        if len(df) <= 1:
+            return md
+
         save_dir = os.path.join(os.path.dirname(__file__), 'image_show')
         os.makedirs(save_dir, exist_ok=True)
         filename = f'chart_{int(time.time() * 1000)}.png'
