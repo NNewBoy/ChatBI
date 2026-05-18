@@ -179,13 +179,19 @@ def generate_stock_chart(df_sql, save_path):
         plt.close()
 
 def sample_x_axis(df, x_col, max_points=10):
-    """对横坐标进行采样，最多保留max_points个点"""
     n = len(df)
     if n <= max_points:
         return df
-    
     indices = np.linspace(0, n-1, max_points, dtype=int)
     return df.iloc[indices].copy()
+
+def set_sparse_xticks(ax, x_values, max_ticks=10):
+    n = len(x_values)
+    if n <= max_ticks:
+        ax.set_xticks(x_values)
+        return
+    tick_indices = np.linspace(0, n-1, max_ticks, dtype=int)
+    ax.set_xticks(x_values.iloc[tick_indices] if hasattr(x_values, 'iloc') else [x_values[i] for i in tick_indices])
 
 def _plot_multi_series(df_sql, x_col, stock_name_col, num_columns, save_path):
     df_plot = df_sql.copy()
@@ -211,18 +217,19 @@ def _plot_multi_series(df_sql, x_col, stock_name_col, num_columns, save_path):
     if use_line:
         for name in stock_names:
             subset = df_plot[df_plot[stock_name_col] == name].sort_values(x_col)
-            subset_sampled = sample_x_axis(subset, x_col)
             safe_label = str(name).replace('%', '%%').replace('{', '{{').replace('}', '}}')
-            ax1.plot(subset_sampled[x_col], subset_sampled[primary_col], marker='o', markersize=4, label=safe_label)
+            ax1.plot(subset[x_col], subset[primary_col], marker='o', markersize=2, label=safe_label)
         ax1.set_ylabel(primary_col)
         ax1.set_title(f"{' / '.join([str(n) for n in stock_names])} - {primary_col}走势")
         if pd.api.types.is_datetime64_any_dtype(df_plot[x_col]):
             ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        set_sparse_xticks(ax1, df_plot.sort_values(x_col)[x_col].reset_index(drop=True))
     else:
         for name in stock_names:
             subset = df_plot[df_plot[stock_name_col] == name].sort_values(x_col)
+            subset_sampled = sample_x_axis(subset, x_col)
             safe_label = str(name).replace('%', '%%').replace('{', '{{').replace('}', '}}')
-            ax1.bar(subset[x_col], subset[primary_col], label=safe_label, alpha=0.7)
+            ax1.bar(subset_sampled[x_col], subset_sampled[primary_col], label=safe_label, alpha=0.7)
         ax1.set_ylabel(primary_col)
         ax1.set_title(f"{' / '.join([str(n) for n in stock_names])} - {primary_col}对比")
 
@@ -252,12 +259,10 @@ def _plot_single_series(df_sql, x_col, num_columns, save_path):
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
 
-    df_sampled = sample_x_axis(df_plot, x_col)
-
     if use_line:
         for col in price_cols:
             safe_label = str(col).replace('%', '%%').replace('{', '{{').replace('}', '}}')
-            ax1.plot(df_sampled[x_col], df_sampled[col], marker='o', markersize=4, label=safe_label)
+            ax1.plot(df_plot[x_col], df_plot[col], marker='o', markersize=2, label=safe_label)
         ax1.set_ylabel('价格')
         ax1.tick_params(axis='y')
 
@@ -265,7 +270,7 @@ def _plot_single_series(df_sql, x_col, num_columns, save_path):
             ax2 = ax1.twinx()
             for col in vol_cols:
                 safe_label = str(col).replace('%', '%%').replace('{', '{{').replace('}', '}}')
-                ax2.bar(df_sampled[x_col], df_sampled[col], alpha=0.3, label=safe_label, color='gray')
+                ax2.bar(df_plot[x_col], df_plot[col], alpha=0.3, label=safe_label, color='gray')
             ax2.set_ylabel('成交量')
             ax2.tick_params(axis='y')
             lines1, labels1 = ax1.get_legend_handles_labels()
@@ -274,9 +279,12 @@ def _plot_single_series(df_sql, x_col, num_columns, save_path):
         else:
             for col in other_cols:
                 safe_label = str(col).replace('%', '%%').replace('{', '{{').replace('}', '}}')
-                ax1.plot(df_sampled[x_col], df_sampled[col], marker='o', markersize=4, label=safe_label)
+                ax1.plot(df_plot[x_col], df_plot[col], marker='o', markersize=2, label=safe_label)
             ax1.legend()
+
+        set_sparse_xticks(ax1, df_plot.sort_values(x_col)[x_col].reset_index(drop=True))
     else:
+        df_sampled = sample_x_axis(df_plot, x_col)
         for col in price_cols:
             safe_label = str(col).replace('%', '%%').replace('{', '{{').replace('}', '}}')
             ax1.bar(df_sampled[x_col], df_sampled[col], alpha=0.7, label=safe_label)
@@ -302,7 +310,7 @@ def _plot_single_series(df_sql, x_col, num_columns, save_path):
     xlabel_str = str(x_col).replace('%', '%%').replace('{', '{{').replace('}', '}}')
     ax1.set_xlabel(xlabel_str)
     ax1.set_title("股票行情走势")
-    if pd.api.types.is_datetime64_any_dtype(df_sampled[x_col]):
+    if pd.api.types.is_datetime64_any_dtype(df_plot[x_col]):
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     plt.xticks(rotation=45)
     plt.tight_layout()
