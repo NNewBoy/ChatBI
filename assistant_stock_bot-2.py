@@ -337,13 +337,33 @@ def init_agent_service():
         'timeout': 30,
         'retry_count': 3,
     }
+
+    function_list = [
+        'exc_sql',
+        {
+            "mcpServers": {
+                "tavily-mcp": {
+                "args": [
+                    "-y",
+                    "tavily-mcp@0.1.4"
+                ],
+                "autoApprove": [],
+                "command": "npx",
+                "env": {
+                    "TAVILY_API_KEY": os.getenv('TAVILY_API_KEY') # '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'
+                }
+                }
+            }
+        }
+    ]
+
     try:
         bot = Assistant(
             llm=llm_cfg,
             name='股票查询助手',
             description='股票行情查询与分析',
             system_message=system_prompt,
-            function_list=['exc_sql'],
+            function_list=function_list,
             files=['./QA.txt'] # 这里设置RAG知识库
         )
         print("股票查询助手初始化成功！")
